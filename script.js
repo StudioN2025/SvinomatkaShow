@@ -1,5 +1,5 @@
 // ====== НАСТРОЙКИ ======
-const GITHUB_USER = "твой_ник";           // ← сюда реальный ник латиницей
+const GITHUB_USER = "StudioN2025";           // ← сюда реальный ник латиницей
 const GITHUB_REPO = "SvinomatkaShow";     // ← название репозитория
 const GITHUB_BRANCH = "main";             // или "master"
 const PHOTO_FOLDER = "photo";
