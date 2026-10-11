@@ -1,7 +1,7 @@
 // ====== НАСТРОЙКИ ======
 // Укажи свой GitHub username и название репозитория
-const GITHUB_USER = "ТВОЙ_ЮЗЕРНЕЙМ";
-const GITHUB_REPO = "ТВОЙ_РЕПОЗИТОРИЙ";
+const GITHUB_USER = "StudioN2025";
+const GITHUB_REPO = "firbik77";
 const GITHUB_BRANCH = "main"; // или "master"
 const PHOTO_FOLDER = "photo";
 // ======================
