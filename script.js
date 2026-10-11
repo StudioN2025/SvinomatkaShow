@@ -1,221 +1,161 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+// ====== НАСТРОЙКИ ======
+const GITHUB_USER = "твой_ник";           // ← сюда реальный ник латиницей
+const GITHUB_REPO = "SvinomatkaShow";     // ← название репозитория
+const GITHUB_BRANCH = "main";             // или "master"
+const PHOTO_FOLDER = "photo";
+// ======================
+
+const galleryEl = document.getElementById("gallery");
+const loaderEl = document.getElementById("loader");
+const modal = document.getElementById("modal");
+const modalImg = document.getElementById("modal-img");
+const closeBtn = document.querySelector(".close");
+const prevBtn = document.getElementById("prev");
+const nextBtn = document.getElementById("next");
+const downloadBtn = document.getElementById("download-btn");
+
+let images = [];
+let currentIndex = 0;
+
+// Формируем URL для API GitHub
+const apiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${PHOTO_FOLDER}?ref=${GITHUB_BRANCH}`;
+
+// ====== ЗАГРУЗКА СПИСКА ФОТО ======
+async function loadImages() {
+    try {
+        console.log("Запрашиваю:", apiUrl);
+        const res = await fetch(apiUrl);
+
+        if (res.status === 404) {
+            throw new Error(
+                `404 — репозиторий "${GITHUB_USER}/${GITHUB_REPO}" или папка "${PHOTO_FOLDER}" не найдены. ` +
+                `Проверь ник, название репо, ветку (${GITHUB_BRANCH}) и название папки.`
+            );
+        }
+        if (res.status === 403) {
+            throw new Error("403 — превышен лимит запросов к GitHub API (60/час). Подожди час.");
+        }
+        if (!res.ok) {
+            throw new Error(`Ошибка ${res.status}: ${res.statusText}`);
+        }
+
+        const files = await res.json();
+
+        // Фильтруем только изображения
+        images = files.filter(file =>
+            file.type === "file" &&
+            /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(file.name)
+        );
+
+        if (images.length === 0) {
+            loaderEl.textContent = "В папке photo пока нет изображений 😔";
+            return;
+        }
+
+        loaderEl.style.display = "none";
+        renderGallery();
+    } catch (err) {
+        loaderEl.textContent = "❌ " + err.message;
+        console.error(err);
+    }
 }
 
-body {
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    min-height: 100vh;
-    color: #fff;
+// ====== ОТРИСОВКА ГАЛЕРЕИ ======
+function renderGallery() {
+    images.forEach((file, index) => {
+        const item = document.createElement("div");
+        item.className = "gallery-item";
+
+        item.innerHTML = `
+            <img src="${file.download_url}" alt="${file.name}" loading="lazy">
+            <button class="download-icon" title="Скачать">⬇️</button>
+        `;
+
+        // Клик по фото — открыть модалку
+        item.querySelector("img").addEventListener("click", () => openModal(index));
+
+        // Клик по кнопке скачивания — не открывать модалку, а скачать
+        item.querySelector(".download-icon").addEventListener("click", (e) => {
+            e.stopPropagation();
+            downloadImage(file);
+        });
+
+        galleryEl.appendChild(item);
+    });
 }
 
-header {
-    text-align: center;
-    padding: 40px 20px;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
+// ====== МОДАЛЬНОЕ ОКНО ======
+function openModal(index) {
+    currentIndex = index;
+    updateModalContent();
+    modal.classList.add("active");
 }
 
-header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 10px;
-    background: linear-gradient(90deg, #ff9a9e, #fad0c4, #fbc2eb);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+function updateModalContent() {
+    const file = images[currentIndex];
+    modalImg.src = file.download_url;
+    downloadBtn.href = file.download_url;
+    downloadBtn.setAttribute("download", file.name);
 }
 
-header p {
-    color: #aaa;
-    font-size: 1.1rem;
+function closeModal() {
+    modal.classList.remove("active");
 }
 
-main {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 40px 20px;
+function showNext() {
+    currentIndex = (currentIndex + 1) % images.length;
+    updateModalContent();
 }
 
-.gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
+function showPrev() {
+    currentIndex = (currentIndex - 1 + images.length) % images.length;
+    updateModalContent();
 }
 
-.gallery-item {
-    position: relative;
-    overflow: hidden;
-    border-radius: 12px;
-    cursor: pointer;
-    aspect-ratio: 1 / 1;
-    background: #222;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    transition: transform 0.3s, box-shadow 0.3s;
+// ====== СКАЧИВАНИЕ ФАЙЛА ======
+async function downloadImage(file) {
+    try {
+        const res = await fetch(file.download_url);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error("Ошибка скачивания:", err);
+        // Фолбэк — открыть в новой вкладке
+        window.open(file.download_url, "_blank");
+    }
 }
 
-.gallery-item:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(255, 154, 158, 0.5);
-}
+// Кнопка скачивания в модалке — через blob, чтобы имя файла сохранилось
+downloadBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (images[currentIndex]) {
+        downloadImage(images[currentIndex]);
+    }
+});
 
-.gallery-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s;
-}
+// ====== СЛУШАТЕЛИ СОБЫТИЙ ======
+closeBtn.addEventListener("click", closeModal);
+nextBtn.addEventListener("click", showNext);
+prevBtn.addEventListener("click", showPrev);
 
-.gallery-item:hover img {
-    transform: scale(1.08);
-}
+modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+});
 
-/* Кнопка скачивания на превью (появляется при наведении) */
-.gallery-item .download-icon {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 40px;
-    height: 40px;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(6px);
-    border: none;
-    border-radius: 50%;
-    color: #fff;
-    font-size: 18px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transform: translateY(-8px);
-    transition: opacity 0.3s, transform 0.3s, background 0.3s;
-    z-index: 2;
-    pointer-events: auto;
-}
+document.addEventListener("keydown", (e) => {
+    if (!modal.classList.contains("active")) return;
+    if (e.key === "Escape") closeModal();
+    if (e.key === "ArrowRight") showNext();
+    if (e.key === "ArrowLeft") showPrev();
+});
 
-.gallery-item:hover .download-icon {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.gallery-item .download-icon:hover {
-    background: rgba(245, 87, 108, 0.9);
-    transform: scale(1.1);
-}
-
-.loader {
-    text-align: center;
-    padding: 60px;
-    font-size: 1.2rem;
-    color: #888;
-}
-
-/* Модальное окно */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.95);
-    justify-content: center;
-    align-items: center;
-}
-
-.modal.active {
-    display: flex;
-}
-
-.modal-content {
-    max-width: 90%;
-    max-height: 80vh;
-    border-radius: 8px;
-    box-shadow: 0 0 40px rgba(245, 87, 108, 0.5);
-    animation: fadeIn 0.3s;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-.close {
-    position: absolute;
-    top: 20px;
-    right: 35px;
-    font-size: 45px;
-    color: #fff;
-    cursor: pointer;
-    transition: color 0.3s;
-    z-index: 1001;
-    line-height: 1;
-}
-
-.close:hover {
-    color: #f5576c;
-}
-
-.nav-buttons button {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: #fff;
-    font-size: 30px;
-    padding: 15px 20px;
-    cursor: pointer;
-    border-radius: 8px;
-    transition: background 0.3s;
-}
-
-.nav-buttons button:hover {
-    background: rgba(245, 87, 108, 0.7);
-}
-
-#prev { left: 20px; }
-#next { right: 20px; }
-
-/* Кнопка скачивания в модальном окне */
-.download-btn {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    color: #fff;
-    text-decoration: none;
-    padding: 12px 28px;
-    border-radius: 50px;
-    font-size: 1rem;
-    font-weight: 600;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s;
-    z-index: 1001;
-    cursor: pointer;
-}
-
-.download-btn:hover {
-    background: rgba(245, 87, 108, 0.9);
-    border-color: rgba(245, 87, 108, 1);
-    transform: translateX(-50%) translateY(-3px);
-    box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
-}
-
-footer {
-    text-align: center;
-    padding: 30px;
-    color: #666;
-    font-size: 0.9rem;
-}
-
-@media (max-width: 600px) {
-    header h1 { font-size: 1.8rem; }
-    .gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-    .close { top: 10px; right: 20px; font-size: 35px; }
-    .nav-buttons button { padding: 10px 15px; font-size: 22px; }
-    .download-btn { bottom: 15px; padding: 10px 22px; font-size: 0.9rem; }
-    .gallery-item .download-icon { width: 32px; height: 32px; font-size: 14px; }
-}
+// ====== ЗАПУСК ======
+loadImages();
