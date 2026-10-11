@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firbik — Галерея</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>📸 Firbik Gallery</h1>
+        <p>Все фотографии в одном месте</p>
+    </header>
+
+    <main>
+        <div id="loader" class="loader">Загрузка фотографий...</div>
+        <div id="gallery" class="gallery"></div>
+    </main>
+
+    <!-- Модальное окно для просмотра -->
+    <div id="modal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modal-img">
+        <div class="nav-buttons">
+            <button id="prev">❮</button>
+            <button id="next">❯</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 Firbik Gallery</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
